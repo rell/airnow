@@ -1,6 +1,6 @@
 # airnow
 
-Dependencies: ["https://nodejs.org/en/download"](Node.js)
+Dependencies: [https://nodejs.org/en/download](Node.js)
 
 ```bash
 npm install
