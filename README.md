@@ -2,7 +2,7 @@
 
 Dependencies: ["https://nodejs.org/en/download"](Node.js)
 
-``(bash)
+```bash
 npm install
 node index.json
-``
+```
