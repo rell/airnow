@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+
+    <!-- Bootstrap and Jquery -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    
+    
+      <!-- <link rel="stylesheet" type="text/css" href="css/bootstrap-datetimepicker.css"> -->
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.15.1/moment.min.js"></script>
+      <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.43/css/bootstrap-datetimepicker.min.css"> 
+      <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.43/css/bootstrap-datetimepicker-standalone.css"> 
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.43/js/bootstrap-datetimepicker.min.js"></script>
+
+    <!-- Leaflet Imports-->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+    <!-- Full Screen Library-->
+    <script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
+    <link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
+    <!-- Search Library -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-search@2.3.7/dist/leaflet-search.src.css" />
+    <script src="https://unpkg.com/leaflet-search@2.3.7/dist/leaflet-search.src.js"></script>
+
+    <!-- Zing Chart -->
+    <script src="https://cdn.zingchart.com/zingchart.min.js"></script>
+
+
+    <style>
+		html, body {
+			height: 100%;
+			margin: 0;
+		}
+		#map {
+            width: 600px;
+            height: 400px;
+        }
+        .info { padding: 6px 8px; font: 14px/16px Arial, Helvetica, sans-serif; background: white; 
+                background: rgba(255,255,255,0.8); box-shadow: 0 0 15px rgba(0,0,0,0.2); border-radius: 5px; }
+        .info h4 { margin: 0 0 5px; color: #777; }
+        .legend { text-align: left; line-height: 18px; color: #555; }
+        .legend i { width: 75px; height: 16px; float: left; margin-right: 8px; opacity: 0.7; }
+
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            padding-top: 50px; /* Location of the box */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        /* Modal Content */
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+
+        /* The Close Button */
+        .close {
+            color: #aaaaaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /** Zing Container **/
+        .chart--container {
+        height: 100%;
+        width: 100%;
+        min-height: 530px;
+        }
+
+        .zc-ref {
+        display: none;
+        }
+        
+        #datetime-container {
+            z-index: 1001;
+            background-color: dimgray;
+            width: 300px; height: 200px;; 
+            position: relative; left: 10px; top: 10px;
+            border-radius: 25px;
+            text-align: center;
+        }
+        .datetime-label {
+            text-align: left;
+            color: ghostwhite;
+            position: relative; left: 10px; 
+            margin-bottom: 5px; margin-top: 5px;
+        }
+        .col-sm-4.pred{
+            position: relative;
+            /* width: 25%; */
+            text-align: center;
+            border-right: 1px solid lightgray;
+            border-left: 1px solid lightgray;
+            height: 250px;
+        }
+    </style>
+    </head>
+    
+    <!-- Javascript -->
+	<script type="text/javascript">
+
+    // HELPER FUNCTIONS
+    // helper function to strip time
+    function striptime(time_input) {
+        if (!time_input) return time_input;
+        else return time_input.substring(0, 10) + ' ' + time_input.substring(11, 16);
+    }
+
+    // helper function to get utc time from a given time input
+    function getUTCString(date_input, utcoff) {
+        var offset_date = new Date((new Date(date_input)).getTime() + (utcoff * 60 * 60 * 1000));
+        var [UTC_year, UTC_month, UTC_date, UTC_hour, UTC_minute] = divide_time(offset_date)
+        var [UTC_month, UTC_date, UTC_hour, UTC_minute] = [add_leading0(UTC_month), add_leading0(UTC_date), add_leading0(UTC_hour), add_leading0(UTC_minute)];
+        var UTC_string = `${UTC_year}-${UTC_month}-${UTC_date}T${UTC_hour}:${UTC_minute}:00.000Z`;
+        return UTC_string;
+    }
+    
+    // helper function to divide time
+    function divide_time(time_input) {
+        return [time_input.getUTCFullYear(), time_input.getUTCMonth() + 1, time_input.getUTCDate(), time_input.getUTCHours(), time_input.getUTCMinutes()];
+    }
+
+    var client_utc_offset = - (new Date().getTimezoneOffset() / 60);
+    console.log(`Client UTC Offset: ${client_utc_offset}`)
+
+    // TIME
+    // create time for now (one hour back) and 12/24/48 hours after now 
+    var now = new Date(new Date() -  (1 * 60 * 60 * 1000))// get current (one hour back)
+    var [now_12, now_24, now_48] = [new Date(now.getTime() + (12 * 60 * 60 * 1000)), new Date(now.getTime() + (24 * 60 * 60 * 1000)), new Date(now.getTime() + (48 * 60 * 60 * 1000))];
+    var [now_year, now_month, now_date, now_hour, now_minute] = divide_time(now);
+    var [now12_year, now12_month, now12_date, now12_hour, now12_minute] = divide_time(now_12);
+    var [now24_year, now24_month, now24_date, now24_hour, now24_minute] = divide_time(now_24);
+    var [now48_year, now48_month, now48_date, now48_hour, now48_minute] = divide_time(now_48);
+
+    // daily runs ran at 13:00, set init day to day before if before 13:00 and on current day if after
+    if (now.getUTCHours() < 13)  var prev_day = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    else  var prev_day = now;
+    
+    // set two days after
+    var two_after_day = new Date(prev_day.getTime() + (48 * 60 * 60 * 1000))
+    var [prev_year, prev_month, prev_date, prev_hour, prev_minute] = divide_time(prev_day);
+    var [two_after_year, two_after_month, two_after_date, two_after_hour, two_after_minute] = divide_time(two_after_day);
+    var [prev_hour, prev_minute, two_after_hour, two_after_minute] = [1, 30, 22, 30]
+
+    // set selected date on datetime picker
+    var [slct_year, slct_month, slct_date] = [prev_year, prev_month, prev_date]
+
+    console.log(now_year, now_month, now_date, now_hour, prediction_time(now_hour, now_minute))
+    console.log("Previous Day:", getUTCString(prev_day, 0))
+    console.log("Now Day:", getUTCString(now, 0))
+    console.log("12 Hours:", getUTCString(now_12, 0))
+    console.log("24 Hours:", getUTCString(now_24, 0))
+    console.log("48 Hours:", getUTCString(now_48, 0))
+
+    // COLOR SCALE
+    var pm25_thresholds = [0, 12, 35, 55, 150, 250];
+    var pm25_colors = ['#00FF00', 'yellow', '#FF4500', 'red', '#8B008B', '#8B0000', 'gray']; // last color is null, second to last is higher than above
+    var pm25_labels = ['Good', 'Moderate', 'Unhealthy for Sensitive Groups', 'Unhealthy', 'Very Unhealthy', 'Hazardous']
+    var pm25_backgrounds = []
+    for (var i = 0; i < pm25_thresholds.length - 1; i++) {
+        pm25_backgrounds.push({type: 'area', range: [pm25_thresholds[i], pm25_thresholds[i+1]],
+                              valueRange: true, backgroundColor: pm25_colors[i], alpha: 1, zIndex: 0})
+    }
+    pm25_backgrounds.push({type: 'area', range: [pm25_thresholds[pm25_thresholds.length - 1], 1000],
+                              valueRange: true, backgroundColor: pm25_colors[pm25_colors.length - 2], alpha: 1})
+
+    // helper function to return associated color
+    function pm25_color_range(value_input) {
+        if (!value_input) return pm25_colors[pm25_colors.length - 1]; // if no value, return null
+        // iterate through each color, return lowest
+        for (var i = 1; i < pm25_thresholds.length; i++) {
+            if (value_input <= pm25_thresholds[i]) return pm25_colors[i - 1];
+        }
+        return pm25_colors[pm25_colors.length - 2]; // if higher than all, return last
+    };
+
+    // helper function to return closest prediction time
+    function prediction_time(hour_input, minute_input) {
+        if (hour_input <= 0 | (hour_input <= 1 & minute_input <= 30)) return 1;
+        else if (hour_input <= 3 | (hour_input <= 4 & minute_input <= 30)) return 4;
+        else if (hour_input <= 6 | (hour_input <= 7 & minute_input <= 30)) return 7;
+        else if (hour_input <= 9 | (hour_input <= 10 & minute_input <= 30)) return 10;
+        else if (hour_input <= 12 | (hour_input <= 13 & minute_input <= 30)) return 13;
+        else if (hour_input <= 15 | (hour_input <= 16 & minute_input <= 30)) return 16;
+        else if (hour_input <= 18 | (hour_input <= 19 & minute_input <= 30)) return 19;
+        else return 22;
+    }
+
+    // WEB ELEMENTS
+    // helper function to create marker popup text
+    function markerPopup(type, info) {
+        var popup_text = `<b>Station</b>: ${info['stationid']} <br>
+                          <b>Site Name</b>: ${info['sitename']} <br>
+                          <b>Agency Name</b>: ${info['agencyname']} <br>`;
+        if (type == 'Station') {
+            if (info['utcoff'] > 0) var utcoff = `+${info['utcoff']}`
+            else var utcoff = info['utcoff'];
+            popup_text += `<b>UTC Zone</b>: ${utcoff} <br>`;
+        }
+        if (type == 'Actual') {
+            if (!info['Value']) {
+                popup_text += '<b><i> No values collected at this station at this time.</i></b> <br>'
+            } else {
+                popup_text += `<b>Local</b>: ${striptime(info['Local'])} <br>
+		               <b>UTC Time</b>: ${striptime(info['UTC'])} <br>
+                               <b>Value</b>: ${info['Value']} &mu;gm<sup>-3</sup> <br>`
+            }
+                            
+        } else if (type == 'Prediction') {
+            if (info['UTC']) {
+                popup_text += `<b>Initialization Date</b>: ${striptime(info['UTC']).substring(0, 10)} <br>
+                           <b>Forecast UTC Time</b>: ${striptime(info['Forecast'])} <br>
+                           <b>Forecast Local Time</b>: ${striptime(info['Local'])} <br>`
+                if (info['Merra2'] == 0) popup_text +='<b>Forecasted Value</b>: <i> No values forecasted at this station at this time.</i><br>'
+                else popup_text += `<b>Forecast Value</b>: ${info['Merra2']} &mu;gm<sup>-3</sup> <br>`
+                if (info['Merra2_ML'] == 0) popup_text +='<b>Prediction Value</b>: <i> No values predicted at this station at this time.</i></b> <br>'
+                else popup_text += `<b>Prediction Value</b>: ${info['Merra2_ML']} &mu;gm<sup>-3</sup> <br>`        
+            } else {
+                popup_text += '<b>Predicted Values</b>: <i>No forecast collected at this station at this time.</i> <br>'
+            }
+        }
+        popup_text += `<button class="link", onclick="plotData('${info['stationid']}')">Plot Data</button>`
+        return popup_text;
+    }
+
+    // helper function to create marker element
+    function generate_prediction_element(date, value){
+        return ` <div style="background-color: ${pm25_color_range(value)}">
+                    <h4 style="margin-bottom: 2px;">${date}</h4>
+                    <h2>${value}</h2>
+                </div>`
+    }
+
+    // helper function to return plot configurations
+    function lineplotConfig(lineplotinput) {
+        console.log(lineplotinput)
+        if (lineplotinput['actual_pair_list'].length > 0 && lineplotinput['Lucas_all_pair_list'].length > 0) {
+            zoom_values = [lineplotinput['Lucas_all_pair_list'][0][0] - 97200000,
+                    lineplotinput['Lucas_all_pair_list'][23][0]]
+        }
+        else {
+            zoom_values = null
+        }
+        var chartConfig = {
+                      type: 'line',
+                      utc: true,
+                      timezone: 0,
+                      backgroundColor: 'white',
+                      gui: {contextMenu: {button: {visible: true}}},
+                      title: {adjustLayout: true, marginTop: '7px', text: lineplotinput['agency_name'],},
+                      legend: { align: 'center', backgroundColor: 'none',  borderWidth: '0px',
+                                item: {cursor: 'hand'},
+                                marker: {type: 'circle',borderWidth: '0px', cursor: 'hand'},
+                                verticalAlign: 'top'
+                      },
+                      plot: {aspect: 'spline', lineWidth: '2px',
+                                marker: {borderWidth: '0px', size: '5px'}
+                      },
+                      plotarea: {margin: 'dynamic 70'},
+                      scaleX: {zooming: true, //zoomTo: [0, 15],
+                        lineColor: '#E3E3E5',
+                        zoomToValues: zoom_values,
+                        step: 'hour',
+                        transform: { type: 'date', all: '%Y %M %d<br>%h:%i'}
+                      },
+                      scaleY: {
+			zooming: true,
+                        guide: {lineStyle: 'dashed'},
+                        lineColor: '#E3E3E5',
+                        minorGuide: {alpha: 0.7, lineColor: '#E3E3E5', lineStyle: 'dashed', lineWidth: '1px', visible: true},
+                        minorTick: {lineColor: '#E3E3E5'},
+                        minorTicks: 1,
+                        tick: {lineColor: '#E3E3E5'},
+                        label: {text: '&mu;gm<sup>-3</sup>'},
+			'min-value': '0',
+                        markers: pm25_backgrounds
+                      },
+		      zoomY: {
+	 	      },
+                      crosshairX: {
+                        marker: {alpha: 0.5, size: '7px'},
+                        plotLabel: {borderRadius: '3px', multiple: true},
+                        scaleLabel: {backgroundColor: '#53535e', borderRadius: '3px'}
+                      },
+                      crosshairY: {type: 'multiple', lineColor: '#E3E3E5', 
+                                    scaleLabel: {backgroundColor: '#53535e', borderRadius: '3px', offset: '-5px'}
+                      },
+                      shapes: [{type: 'rectangle', id: 'view_all', backgroundColor: 'gainsboro', borderColor: '#E3E3E5',
+                                borderRadius: '3px', borderWidth: '1px',
+                                cursor: 'hand',
+                                label: {text: 'View All', bold: true, fontSize: '12px'},
+                                width: '75px', height: '20px', x: '85%', y: '11%'
+                      }],
+                      tooltip: {borderRadius: '3px', borderWidth: '0px'},
+                      preview: {adjustLayout: true, borderColor: '#E3E3E5',
+                                mask: {backgroundColor: '#E3E3E5'},
+                                markers: pm25_backgrounds
+                      },
+                      // line plots to show
+                      series: [
+                          {values: lineplotinput['actual_pair_list'], lineColor: 'black', 'text': 'Measurement', marker: {backgroundColor: 'black'}},
+                          {values: lineplotinput['forecast_pair_list'], lineColor: 'gainsboro', 'text': 'GEOS-FP', marker: {backgroundColor: 'gainsboro'}},
+                          {values: lineplotinput['prediction_pair_list'], lineColor: '#b84c7d', 'text': 'GEOS-FP_ML', marker: {backgroundColor: '#b84c7d'}},
+                          {values: lineplotinput['Lucas_all_pair_list'], lineColor: '#86a542', 'text': 'Lucas_all_ML', marker: {backgroundColor: '#86a542'}},
+                          {values: lineplotinput['Lucas_one_pair_list'], lineColor: '#6881d8', 'text': 'Lucas_one_ML', marker: {backgroundColor: '#6881d8'}},
+                          {values: lineplotinput['Merra2_DNN_list'], lineColor: '#65350F', 'text': 'Merra2_DNN', marker: {backgroundColor: '#65350F'}}
+                      ]
+                    };
+        return chartConfig;
+    }
+
+    // LEAFLET LAYER loadings
+    // helper functions to load stations
+    function getStations() {
+		$.get('/getstations', function(data) {
+            // iterate over stations and add markers to map
+            for (const station of data) {
+                var [Lat, Lon, agencyname, sitename, stationid,Local, utcoff] = [station['Latitude'], station['Longitude'], station['agencyname'], station['sitename'], station['stationid'],station['Local'], station['utcoff']];
+                var popup_text = markerPopup('Station', station)
+                if (!stationid.startsWith("0")){
+                    var redIcon = new L.Icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    });
+                    var marker = L.marker([Lat, Lon], {icon: redIcon}, {title: station['sitename']}).addTo(stations_layer).bindPopup(popup_text);
+                } else {
+                    var marker = L.marker([Lat, Lon], {title: station['sitename']}).addTo(stations_layer).bindPopup(popup_text);
+                }
+            }
+		});
+	};
+
+    // helper function to get hourly value for observations
+    function getHourlyActual(year, month, day, hour) {
+        pm25_layer.clearLayers();
+		$.get('/gethourlyactual', {year: year, month: month, day: day, hour: hour},  function(data) {
+            // iterate over stations and add markers to map
+            for (var station of data) {
+		console.log(station)
+                var [Lat, Lon, agencyname, sitename, stationid, Local, UTC, Value] = [station['Latitude'], station['Longitude'], station['agencyname'], station['sitename'], station['stationid'],
+                                                                                      station['Local'], station['UTC'], station['Value']];
+                // set popup text
+                var popup_text = markerPopup('Actual', station);
+                var marker = L.circleMarker([Lat, Lon], {color: pm25_color_range(Value), fillOpacity: 1.0}).addTo(pm25_layer).bindPopup(popup_text);
+            }
+		});
+	};
+
+    function add_leading0(n) {
+        return (n < 10) ? ("0" + n) : n;
+    }
+    
+    function hour_interval_string(start_date, end_date, interval) {
+        var dates_array = []
+        var start_date = moment(start_date)
+        var end_date = moment(end_date)
+        while (start_date <= end_date) {
+            var new_date = moment(start_date).format(`YYYY-MM-DDTHH:mm:00`) + '.000Z'
+            dates_array.push(new_date)
+            start_date= moment(start_date).add(interval, 'hours');
+        }
+        return dates_array
+    }
+
+    // check for values existing in map, else return null
+    function fill_hour_with_null(time_list, values_map) {
+        var array = []
+        for (const date of time_list) {
+            if (values_map.has(date)) array.push(values_map.get(date));
+            else array.push(null);
+        }
+        return array
+    }
+
+
+    // function to get hourly for prediction
+    function getHourlyPrediction(fore_layer, ml_layer, init_year, init_month, init_day, fore_year, fore_month, fore_day, fore_hour) {
+        if (fore_layer) fore_layer.clearLayers();
+        if (ml_layer) ml_layer.clearLayers();
+        $.get('gethourlyprediction', {init_year: init_year, init_month: init_month, init_day: init_day,
+                                      fore_year: fore_year, fore_month: fore_month, fore_day: fore_day, fore_hour: fore_hour}, function(data) {
+            for (var station of data) {
+                var [Lat, Lon, agencyname, sitename, stationid, UTC, Forecast, utcoff, Value_fore, Value_ML] = [station['Latitude'], station['Longitude'], station['agencyname'], station['sitename'], station['stationid'],
+                                                                                                                station['UTC'], station['Forecast'], station['utcoff'], station['Merra2'], station['Merra2_ML']];
+
+                // update time based on client time zone
+                station['Local'] = getUTCString(Forecast, utcoff)
+                var popup_text = markerPopup('Prediction', station);
+                if (fore_layer) var fore_marker = L.circleMarker([Lat, Lon], {color: pm25_color_range(Value_fore), fillOpacity: 1.0}).addTo(fore_layer).bindPopup(popup_text);                                                                                               
+                if (ml_layer) var ml_marker = L.circleMarker([Lat, Lon], {color: pm25_color_range(Value_ML), fillOpacity: 1.0}).addTo(ml_layer).bindPopup(popup_text);  
+            }
+        })
+    }
+
+    // helper function to create line plot based on date
+    function plotData(stationid) {
+        var plotModal = document.getElementById("plotModal");
+        var plotModalHeader = document.getElementById('plotModalHeader')
+        console.log(`Day: ${slct_month} ${slct_date}, ${slct_year}`)
+        //console.log(`Day: ${prev_month} ${prev_date}, ${prev_year}`)
+        $.get('/getstationplot', {stationid: stationid, init_year: slct_year, init_month: slct_month, init_date: slct_date},  function(data) {
+            var [station_info, pm25_data, prediction_data, grouped_predictions] = [data['station_info'], data['pm25_hour'], data['predictions'], data['grouped_predictions']]
+
+            // create lists of [time, value]
+            var [actual_pair_list, forecast_pair_list, prediction_pair_list, Lucas_all_pair_list, Lucas_one_pair_list, merra2_dnn_list] = [[], [], [], [], [], []]
+            for (var data_point of pm25_data) {
+                var data_date = new Date(data_point['UTC'])
+                if (data_point['Value'] !== 0) actual_pair_list.push([new Date(data_date).valueOf(), data_point['Value']])
+                else actual_pair_list.push([new Date(data_date).valueOf(), null])
+            }
+            for (var data_point of prediction_data) {
+                var data_date = new Date(data_point['Forecast'])
+                if (data_point['Merra2'] !== 0) forecast_pair_list.push([new Date(data_date).valueOf(), data_point['Merra2']])
+                else forecast_pair_list.push([new Date(data_date).valueOf(), null])
+                if (data_point['Merra2_ML'] !== 0) prediction_pair_list.push([new Date(data_date).valueOf(), data_point['Merra2_ML']])
+                else prediction_pair_list.push([new Date(data_date).valueOf(), null])
+                if (data_point['Lucas_ML_All'] !== 0) Lucas_all_pair_list.push([new Date(data_date).valueOf(), data_point['Lucas_ML_All']])
+                else Lucas_all_pair_list.push([new Date(data_date).valueOf(), null])
+                if (data_point['Lucas_ML_One'] !== 0) Lucas_one_pair_list.push([new Date(data_date).valueOf(), data_point['Lucas_ML_One']])
+                else Lucas_one_pair_list.push([new Date(data_date).valueOf(), null])
+                if (data_point['Merra2_DNN'] !== 0) merra2_dnn_list.push([new Date(data_date).valueOf(), data_point['Merra2_DNN']])
+                else merra2_dnn_list.push([new Date(data_date).valueOf(), null])
+
+            }
+
+            // set chart events
+            ZC.LICENSE = ["569d52cefae586f634c54f86dc99e6a9", "b55b025e438fa8a98e32482b5f768ff5"];
+            zingchart.bind('plotModalChart', 'shape_click', function(p) {
+                if (p.shapeid == 'view_all') {
+                zingchart.exec(p.id, 'viewall');
+                }
+            })
+
+            plotModal.style.display = "block"; // show modal
+            
+            // chart
+            var lineplotinput = {'agency_name': station_info['agencyname'], 'actual_pair_list': actual_pair_list,
+                                'forecast_pair_list': forecast_pair_list, 'prediction_pair_list': prediction_pair_list,
+                                'Lucas_all_pair_list': Lucas_all_pair_list, 'Lucas_one_pair_list': Lucas_one_pair_list, 'Merra2_DNN_list': merra2_dnn_list}
+            // render chart with correct configurations
+            var chartConfig = lineplotConfig(lineplotinput)
+            zingchart.render({id: 'plotModalChart', data: chartConfig, height: '100%', width: '100%'}); 
+
+            // predictions
+            var pred_boxes = document.getElementsByClassName('col-sm-4 pred')
+            for (var index in grouped_predictions) {
+                var grouped_prediction = grouped_predictions[index]
+                var grouped_date = grouped_prediction['Forecast'].split('T')[0]
+                console.log(grouped_prediction)
+                var myGaugeConfig = {
+                    title: {
+                        text: grouped_date,
+                        "font-size": 15,
+                    },
+                    type: "gauge",
+                    'scale-r': {
+                        aperture: 200,
+                        minValue: 0,
+                        maxValue: 300,
+                        step: 1,
+                        center: {
+                            visible: false,
+                        },
+                        ring: {
+                            size: 25,
+                            rules: [
+                                {
+                                    rule: "%v >= 0 && %v <= 12",
+                                    'background-color': "green",
+                                },
+                                {
+                                    rule: "%v > 12 && %v <= 35",
+                                    'background-color': "yellow",
+                                },
+                                {
+                                    rule: "%v > 35 && %v <= 55",
+                                    'background-color': "orange",
+                                },
+                                {
+                                    rule: "%v > 55 && %v <= 150",
+                                    'background-color': "red",
+                                },
+                                {
+                                    rule: "%v > 150 && %v <= 250",
+                                    'background-color': "purple",
+                                },
+                                {
+                                    rule: "%v > 250 && %v <= 300",
+                                    'background-color': "brown",
+                                }
+                            ]
+                        },
+                        item: {    //Scale Label Styling
+                            'font-color': "gray",
+                            'font-family': "Georgia, serif",
+                            'font-size':10,
+                            'font-weight': "bold",     //or "normal"
+                            'font-style': "normal",    //or "italic"
+                            'offset-r': -10,    //To adjust the placement of your scale labels.
+                            angle: "auto"    //To adjust the angle of your scale labels.
+                        }
+
+                    },
+                    plot: {
+                        csize: "5%",
+                        size: "100%",
+                        'background-color': "#000000",
+                        valueBox: {
+                            placement: 'center',
+                            text: 'No Value Founded', //default
+                            fontSize: 10,
+                            'font-color': 'gray',
+                            rules: [
+                                {
+                                    rule: "%v > 0 && %v <= 12",
+                                    text: '%v<br>Good',
+                                    'font-color': "green"
+                                },
+                                {
+                                    rule: "%v > 12 && %v <= 35",
+                                    text: '%v<br>Moderate',
+                                    'font-color': "yellow"
+                                },
+                                {
+                                    rule: "%v > 35 && %v <= 55",
+                                    text: '%v<br>Unhealthy - Sensitive Group',
+                                    'font-color': "orange"                                
+                                },
+                                {
+                                    rule: "%v > 55 && %v <= 150",
+                                    text: '%v<br>Unhealthy',
+                                    'font-color': "red"
+                                },
+                                {
+                                    rule: "%v > 150 && %v <= 250",
+                                    text: '%v<br>Very Unhealthy',
+                                    'font-color': "purple"
+                                },
+                                {
+                                    rule: '%v > 250 && %v <= 300',
+                                    text: '%v<br>Hazardous',
+                                    'font-color': "brown"
+                                }
+                            ]
+                        }
+                    },
+                    series: [
+                        {
+                            values: [Math.round(grouped_prediction['Merra2_ML_avg'])],
+                            indicator: [5, 5, 5, 5, 0.75],
+                            backgroundColor:'black'
+                        }
+                    ]
+                };
+                zingchart.render({
+                    id: `gauge-${index}`,
+                    data: myGaugeConfig,
+                    height: 250,
+                    width: '90%'
+                });
+                // pred_boxes[index].innerHTML = generate_prediction_element(grouped_date, Math.round(grouped_prediction['Merra2_ML_avg']))
+            }
+
+
+            // if (actual_pair_list.length > 0) {
+            //     plotModal.style.display = "block"; // show modal
+                
+            //     // chart
+            //     var lineplotinput = {'agency_name': station_info['agencyname'], 'actual_pair_list': actual_pair_list,
+            //                       'forecast_pair_list': forecast_pair_list, 'prediction_pair_list': prediction_pair_list,
+            //                       'Lucas_all_pair_list': Lucas_all_pair_list, 'Lucas_one_pair_list': Lucas_one_pair_list}
+            //     // render chart with correct configurations
+            //     var chartConfig = lineplotConfig(lineplotinput)
+            //     zingchart.render({id: 'plotModalChart', data: chartConfig, height: '100%', width: '100%'}); 
+
+            //     // predictions
+            //     var pred_boxes = document.getElementsByClassName('col-sm-4 pred')
+            //     for (var index in grouped_predictions) {
+            //         var grouped_prediction = grouped_predictions[index]
+            //         var grouped_date = grouped_prediction['Forecast'].split('T')[0]
+            //         pred_boxes[index].innerHTML = generate_prediction_element(grouped_date, Math.round(grouped_prediction['Merra2_ML_avg']))
+            //     }
+            // } else {
+            //     alert("No data to plot!")
+            // }
+
+        });
+    }
+
+    </script>
+</head>
+
+<body>
+
+    
+      
+<div id="mapid" style="width: 100%; height: 100%; position: absolute; font-family: Verdana, Geneva, Tahoma, sans-serif; ">
+    <!-- Date Time-->
+    <div class="btn-group" id = "datetime-container">
+        <p style="color: SpringGreen; top: 5%; position: relative; font-size: 15px;">PM 2.5 Realtime & Forecasting</p>
+        <p class="datetime-label" style="font-style: italic;"> Note: Date and time are in UTC</p>
+
+        <!-- Date Time Picker-->
+        <p class="datetime-label">Realtime / Initialization Date</p>
+        <div class="container">
+            <div class="row">
+               <div class='col-sm-6'>
+                  <div class="form-group">
+                     <div class='input-group date' id='datetime-initialize' style='width: 49%;'>
+                        <input type='text' class="form-control" />
+                        <span class="input-group-addon">
+                            <span class="glyphicon glyphicon-calendar"></span>
+                        </span>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <!-- Drop Down -->
+         <p class="datetime-label" style="margin-top: 0px; margin-left: 0px;">Forecasted Date</p>
+         <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown"
+            style="position: relative; width: 90%;" id="dropdown-label">Forecasted Date
+            <span class="caret"></span></button>
+            <ul class="dropdown-menu" id="date-dropdown" style="position: relative; left: 5%; z-index: 1002; width: 75%;
+            height: 200px; overflow-y:auto;">
+            </ul>
+          </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="plotModal" class="modal", style="z-index: 1002">
+        <!-- Modal content -->
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('plotModal').style.display = 'none';">&times;</span>
+            <!-- Line Plot -->
+            <div id="plotModalChart" class="chart--container"></div>
+            <hr>
+            <vl></vl>
+            <!-- Predictions -->
+            <div class="container" style="width: 100%; height: 100%; min-height: 300px;">
+                <div class="row" style="height: 250px;">
+                        <h4>GEOS-FP_ML Predictions</h4>
+                        <div id='gauge-0' class="col-sm-4 pred"></div>
+                        <div id='gauge-1' class="col-sm-4 pred"></div>
+                        <div id='gauge-2' class="col-sm-4 pred"></div>  
+                </div>
+            </div>
+        </div>
+    </div>
+  
+</div>
+
+<script>
+
+    $(function () {
+        $('#datetime-initialize').datetimepicker({
+            format: 'MM/DD/YYYY HH:mm',
+            defaultDate: `${now_month}/${now_date}/${now_year} ${now_hour}:00`
+        })
+        $("#datetime-initialize").on("dp.change", function (e) {
+            var utc_date = new Date(Date.UTC(e.date['_d'].getFullYear(),  e.date['_d'].getMonth(),  e.date['_d'].getDate(),  e.date['_d'].getHours()))
+            var [change_12, change_24, change_48] = [new Date(utc_date.getTime() + (12 * 60 * 60 * 1000)), new Date(utc_date.getTime() + (24 * 60 * 60 * 1000)), new Date(utc_date.getTime() + (48 * 60 * 60 * 1000))];
+            var [year, month, date, hour, minute] = [utc_date.getUTCFullYear(), utc_date.getUTCMonth() + 1, utc_date.getUTCDate(), utc_date.getUTCHours(), utc_date.getUTCMinutes()]
+            var [change12_year, change12_month, change12_date, change12_hour, change12_minute] = divide_time(change_12);
+            var [change24_year, change24_month, change24_date, change24_hour, change24_minute] = divide_time(change_24);
+            var [change48_year, change48_month, change48_date, change48_hour, change48_minute] = divide_time(change_48);
+            [slct_year, slct_month, slct_date] = [year, month, date]
+            getHourlyActual(year, month, date, hour);
+            getHourlyPrediction(hr12_forecast, hr12_ml, year, month, date, change12_year, change12_month, change12_date, prediction_time(change12_hour, minute));
+            getHourlyPrediction(hr24_forecast, hr24_ml, year, month, date, change24_year, change24_month, change24_date, prediction_time(change24_hour, minute));
+            getHourlyPrediction(hr48_forecast, hr48_ml, year, month, date, change48_year, change48_month, change48_date, prediction_time(change48_hour, minute));
+            update_dropdown_list()
+        });
+        update_dropdown_list();
+    });
+
+
+    function update_dropdown_list() {
+        // set innerHTML to empty
+        var dropdown_menu_element = document.getElementById("date-dropdown");
+        dropdown_menu_element.innerHTML = '';
+        // get date from input in datetime picker
+        var selected_init_date = $("#datetime-initialize").find("input").val()
+        // get date for next three days
+        var selected_day0 = new Date(selected_init_date.substring(6, 10), parseInt(selected_init_date.substring(0, 2)) - 1, selected_init_date.substring(3, 5));
+        var selected_day1 = new Date((new Date(selected_day0)).getTime() + (24 * 60 * 60 * 1000));
+        var selected_day2 = new Date((new Date(selected_day0)).getTime() + (48 * 60 * 60 * 1000));
+        var selected_hours_list = ['01', '04', '07', '10', '13', '16', '19', '22']
+
+        // loop through three days and hours and add element
+        for (var selected_day of [selected_day0, selected_day1, selected_day2]) {
+            var [selected_year, selected_month, selected_date, selected_hour, selected_minute] = divide_time(selected_day);
+            for (var selected_hour of selected_hours_list) {
+                var dropdown_element = `<li><a class="dropdown-item">${add_leading0(selected_month)}/${add_leading0(selected_date)}/${selected_year} ${selected_hour}:30</a></li>`;
+                dropdown_menu_element.innerHTML += dropdown_element
+            }
+        }
+
+        // for each element, add event listener to switch dropdown text and 
+        var dropdown_children = dropdown_menu_element.children;
+        for (var i = 0; i < dropdown_children.length; i++) {
+            var dropdown_child = dropdown_children[i];
+            dropdown_child.addEventListener("click", function() {
+                var selected_init_date = $("#datetime-initialize").find("input").val()
+                var selected_forecast_option = this.textContent;
+
+                var [init_year, init_month, init_date] = [selected_init_date.substring(6, 10), selected_init_date.substring(0, 2), selected_init_date.substring(3, 5)]
+                var [forecast_year, forecast_month, forecast_date, forecast_hour] = [selected_forecast_option.substring(6, 10), selected_forecast_option.substring(0, 2), selected_forecast_option.substring(3, 5), selected_forecast_option.substring(11, 13)]
+
+                $("#dropdown-label").text(selected_forecast_option);
+                getHourlyPrediction(forecast_layer, ml_layer, init_year, init_month, init_date, forecast_year, forecast_month, forecast_date, forecast_hour)
+            })
+        }   
+    }
+    
+
+    // create map and set id
+	var mymap = L.map('mapid').setView([0, 0], 2.5);
+	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 18,
+		attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+			'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+		id: 'mapbox/streets-v11',
+		tileSize: 512,
+		zoomOffset: -1,
+        zoomControl: false
+	}).addTo(mymap);
+
+    // layers
+    var [none_layer, stations_layer, pm25_layer, forecast_layer, ml_layer] = [L.layerGroup(), L.layerGroup(), L.layerGroup(), L.layerGroup(), L.layerGroup()];
+    var [hr12_forecast, hr24_forecast, hr48_forecast] = [L.layerGroup(), L.layerGroup(), L.layerGroup()];
+    var [hr12_ml, hr24_ml, hr48_ml] = [L.layerGroup(), L.layerGroup(), L.layerGroup()];
+
+    // overlays
+    var basic_overlays = {
+        'None': none_layer,
+        'All Stations': stations_layer,
+        'Measurement': pm25_layer,
+        'GEOS-FP': forecast_layer,
+        'GEOS-FP_ML': ml_layer,
+    }
+    var forecast_overlays = {
+        'None': none_layer,
+        '12 Hours': hr12_forecast,
+        '24 Hours': hr24_forecast,
+        '48 Hours': hr48_forecast
+    }
+    var ml_overlays = {
+        'None': none_layer,
+        '12 Hours': hr12_ml,
+        '24 Hours': hr24_ml,
+        '48 Hours': hr48_ml
+    }
+
+    // legend
+    var legend = L.control({position: 'bottomright'});
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend'),
+            labels = [],
+            from, to;
+            //add each legend from pm25 threholds
+            for (var i = 0; i < pm25_thresholds.length; i++) {
+            from = pm25_thresholds[i];
+            to = pm25_thresholds[i + 1];
+            labels.push(
+                    '<i style="background:' + pm25_colors[i] + '"></i> ' +
+                '<div style="display: inline; font-size: 18px;">' +  pm25_labels[i] + ' ('+  from + (to ? '&ndash;' + to : '+') + ') </div>');
+            }
+        var innerHTML = '<b style="display: inline; font-size: 18px;"> PM2.5 (&mu;gm<sup>-3</sup>)<br> </b>' + labels.join('<br>');
+        div.innerHTML = innerHTML;
+        return div;
+    };
+    legend.addTo(mymap);
+
+    // zoom control
+    mymap.zoomControl.remove();
+    var zoom_control = L.control.zoom({position: 'bottomleft'})
+    zoom_control.addTo(mymap);
+
+    // full screen control
+    var full_screen_control = new L.Control.Fullscreen({position: 'bottomleft'})
+    full_screen_control.addTo(mymap);
+
+    // search
+    var search_control = L.control.search({
+        layer: stations_layer,
+        initial: false,
+        position: 'topright',
+        movetoLocation: true,
+        zoom: 6,
+        marker: false,
+    })
+    search_control.addTo(mymap);
+    
+    // initial loading
+    getStations(); // load stations
+    getHourlyActual(now_year, now_month, now_date, now_hour); // month starts at 0, data collected at previous hour
+    getHourlyPrediction(hr12_forecast, hr12_ml, prev_year, prev_month, prev_date, now12_year, now12_month, now12_date, prediction_time(now12_hour, now_minute));
+    getHourlyPrediction(hr24_forecast, hr24_ml, prev_year, prev_month, prev_date, now24_year, now24_month, now24_date, prediction_time(now24_hour, now_minute));
+    getHourlyPrediction(hr48_forecast, hr48_ml, prev_year, prev_month, prev_date, now48_year, now48_month, now48_date, prediction_time(now48_hour, now_minute));
+
+    // layers
+    L.control.layers(basic_overlays).addTo(mymap);
+    L.control.layers(forecast_overlays).addTo(mymap);
+    L.control.layers(ml_overlays).addTo(mymap);
+    var overlay_layers = document.getElementsByClassName('leaflet-control-layers-list');
+    overlay_layers[0].prepend('Stations and Realtime Values');
+    overlay_layers[1].prepend('GEOS-FP Prediction Values');
+    overlay_layers[2].prepend('GEOS-FP_ML Values');
+
+</script>
+
+  
+</body>
+</html>
+basic_overlays).addTo(mymap);
+    L.control.layers(forecast_overlays).addTo(mymap);
+    L.control.layers(ml_overlays).addTo(mymap);
+    var overlay_layers = document.getElementsByClassName('leaflet-control-layers-list');
+    overlay_layers[0].prepend('Stations and Realtime Values');
+    overlay_layers[1].prepend('Forecasting Values');
+    overlay_layers[2].prepend('ML Prediction Values');
+
+</script>
+
+  
+
+</body>
+</html>
+tions and Realtime Values');
+    overlay_layers[1].prepend('Forecasting Values');
+    overlay_layers[2].prepend('ML Prediction Values');
+
+</script>
+
+  
+
+</body>
+</html>
+(ml_overlays).addTo(mymap);
+    var overlay_layers = document.getElementsByClassName('leaflet-control-layers-list');
+    overlay_layers[0].prepend('Stations and Realtime Values');
+    overlay_layers[1].prepend('Forecasting Values');
+    overlay_layers[2].prepend('ML Prediction Values');
+
+</script>
+
+  
+
+</body>
+</html>
