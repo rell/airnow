@@ -7,13 +7,8 @@ function parseConfigFile(filePath) {
     try {
         const fileContent = fs.readFileSync(filePath, 'utf-8');
         const config = ini.parse(fileContent);
-        console.log(config)
-        console.log(config.database)
-
         const { HOST, USER, PASSWORD, PORT, DATABASE } = config.database_geos;
-
         return { HOST, USER, PASSWORD, PORT, DATABASE };
-
     } catch (error) {
 
         console.error(`Error reading or parsing file: ${error}`);
