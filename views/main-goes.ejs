@@ -215,7 +215,7 @@ var d=getd().then(d=>{
             if (value_input <= pm25_thresholds[i]) return pm25_colors[i - 1];
         }
         return pm25_colors[pm25_colors.length - 2]; // if higher than all, return last
-    };
+    }
 
     // helper function to return closest prediction time
     /*function prediction_time(hour_input, minute_input) {
@@ -403,7 +403,7 @@ var d=getd().then(d=>{
 	//		console.log(popup_text)
 		});
 	    //console.log(popup_text)
-	};
+	}
 
     // helper function to get hourly value for observations
     function getHourlyActual(year, month, day, hour) {
@@ -451,7 +451,7 @@ var d=getd().then(d=>{
                 var marker = L.circleMarker([Lat, Lon], {color: pm25_color_range(Value), fillOpacity: 1.0}).addTo(pm25_layer).bindPopup(popup_text);
             }
 		});
-	};
+	}
    function getHourlyGoes(year, month, day, hour) {
         goes_layer.clearLayers();
 	   //heat_layer.clearLayers();
@@ -476,7 +476,7 @@ var d=getd().then(d=>{
 		var marker = L.circleMarker([Lat, Lon], {color: pm25_color_range(Value), fillOpacity: 1.0}).addTo(goes_layer).bindPopup(popup_text);
             }
                 });
-        };
+        }
 
     function add_leading0(n) {
         return (n < 10) ? ("0" + n) : n;

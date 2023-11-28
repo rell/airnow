@@ -26,13 +26,11 @@ app.get('/', routes.get_main); // load initial html page
   res.redirect('test page');
 });*/
 
-
 //app.get('/test',routes.get_test);
 app.get('/getstations', routes.get_stations); // get stations
 app.get('/gethourlyactual', routes.get_hourly_actual) // get actual data at one hour
 app.get('/gethourlyprediction', routes.get_hourly_prediction) // get prediction data at one hour
-app.get('/getstationplot', routes.get_station_plot) // get plot data
-
+app.get('/getstationplot/', routes.get_station_plot) // get plot data
 app.get('/querypredictions/', routes.query_predictions)
 
 app.listen(8081, () => {
